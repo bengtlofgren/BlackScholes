@@ -1,13 +1,7 @@
-%lang starknet
+%builtin range_check_ptr
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.uint256 import (
-    Uint256, uint256_add, uint256_sub, uint256_lt, uint256_eq, uint256_check
-)
+from starkware.cairo.common.math import (unsigned_div_rem, floor, sqrt, abs_value)
 
-#
-# Constants
-#
 
 const SECONDS_PER_YEAR = 31536000
 const PRECISE_UNIT = 10**27
@@ -26,37 +20,21 @@ const EULER = 271828182845904523
 #@dev log2(EULER) = 59.6 ... so 60 is upper bound
 #@dev for reference: const EULER = 2 7182 8182 8459 0452 3536 0287 4713 527
 
-# Math
-#
-
 #
 # @dev Returns absolute value of an int as a uint.
 #
-@external
-func abs_val{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*, 
-        range_check_ptr
-    }(x : Uint256) -> (res : Uint256):
-    alloc_locals
-    local res : Uint256
-    %{
-        ids.res = abs(x)
-    %}
-    return (res)
-end
+
 
 # @dev Returns the floor of a PRECISE_UNIT (x - (x % 1e27))
 func floor{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*, 
         range_check_ptr
-    }(x : Uint256) -> (res : Uint256):
+    }(x : felt) -> (res : felt):
     alloc_locals
-    local res : Uint256
+    local res : felt
     %{
-        ids.res = x - (x % PRECISE_UNIT)
+        ids.res = ids.x - (ids.x % ids.PRECISE_UNIT)
     %}
+    assert res 
     return (res)
 end
 
@@ -65,15 +43,13 @@ end
 #
 @external
 func ln{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*, 
         range_check_ptr
-    }(x : Uint256) -> (res : Uint256):
+    }(x : felt) -> (res : felt):
     alloc_locals
-    local res : Uint256
+    local res : felt
     %{
         import math
-        full_res = math.log(((ids.x.high << 128) +  x.low)
+        full_res = math.log((ids.x.high << 128) +  x.low)
         #log of any 256 bit number is less than 128 bits
         ids.res.high = 0
         ids.res.low = math.floor(full_res)
@@ -91,12 +67,10 @@ end
 #
 @external
 func exp{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*, 
         range_check_ptr
-    }(x : Uint256) -> (res : Uint256):
+    }(x : felt) -> (res : felt):
     alloc_locals
-    local res : Uint256
+    local res : felt
     %{
         import math
         assert ids.x <= MAX_EXP
@@ -119,5 +93,3 @@ end
 #     alloc_locals
 #     let (local sqrtT) : Uint256 = 
 #     let 
-
-
