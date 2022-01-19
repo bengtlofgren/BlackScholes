@@ -24,6 +24,30 @@ const EULER = 271828182845904523
 # @dev Returns absolute value of an int as a uint.
 #
 
+from starkware.cairo.common.math_cmp import is_le_felt
+func lnFrac{range_check_ptr}(frac: felt, delta : felt) -> (res:felt):
+    alloc_locals
+    
+    #This is broken, but should give a good answer. If we can use this for ln,  
+    # then we can use it in verifying exp
+    
+    let (end_reached) = is_le_felt(delta, 2)
+    if end_reached == 1:
+        # When last iteration is reached, return 0.
+        return (res=0)
+    end
+
+    let (local new_delta, _) = unsigned_div_rem(delta,2)
+    let (is_g_2) = is_le_felt(frac*frac*10, 2*PRECISION*PRECISION)
+    let (local new_frac, _) = unsigned_div_rem(frac*frac, (1+is_g_2)*PRECISION)
+    let (res) = lnFrac(new_frac, new_delta)
+    
+    # Add the new value `n` to the sum.
+    let new_res = res + delta*(1-is_g_2)
+    
+    return (res=new_res)
+end
+
 
 # @dev Returns the floor of a PRECISE_UNIT (x - (x % 1e27))
 func floor{
