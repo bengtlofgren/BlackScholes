@@ -41,7 +41,6 @@ end
 #
 # @dev Returns the natural log of the value using Halley's method.
 #
-@external
 func ln{
         range_check_ptr
     }(x : felt) -> (res : felt):
@@ -49,16 +48,19 @@ func ln{
     local res : felt
     %{
         import math
-        full_res = math.log((ids.x.high << 128) +  x.low)
-        #log of any 256 bit number is less than 128 bits
-        ids.res.high = 0
-        ids.res.low = math.floor(full_res)
+        full_res = math.log(ids.x)/math.log(ids.EULER)
+        ids.res= math.floor(full_res)
     %}
-
-    #@dev now we have to assert that e^(result) > x and that e^(result + 1) < x
     
-    #low part 
-    assert pow(EULER,  )
+
+     #@dev now we have to assert that e^(result) > x and that e^(result + 1) < x
+     # NOTE THAT X CANNOT BE > 2^190 and assumes x is already with 18 decimals
+    let (local low) = pow(EULER, res)
+    tempvar check = low*EULER - low
+    let (local c) = is_le_felt(check, test*EULER*EULER)
+    let (local d) = is_le_felt(test*EULER, check)
+    assert c+d = 2
+
     return (res)
 end
 
@@ -76,7 +78,7 @@ func exp{
         assert ids.x <= MAX_EXP
         if x == 0:
             ids.res = PRECISE_UNIT
-        ids.res = math.exp(ids.x) 
+        ids.res = math.exp(ids.x) * math.pow(10,ids.x)
     %}
     return (res)
 end
