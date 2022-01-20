@@ -30,7 +30,7 @@ func lnFrac{range_check_ptr}(frac: felt, delta : felt) -> (res:felt):
     
     #This is broken, but should give a good answer. If we can use this for ln,  
     # then we can use it in verifying exp
-    
+
     let (end_reached) = is_le_felt(delta, 2)
     if end_reached == 1:
         # When last iteration is reached, return 0.
@@ -119,3 +119,89 @@ end
 #     alloc_locals
 #     let (local sqrtT) : Uint256 = 
 #     let 
+
+# The following code prints the sum of the numbers from 1 to 10.
+# Modify the function `compute_sum` to print all the intermediate sums:
+# 1, 1 + 2, 1 + 2 + 3, ..., 1 + 2 + ... + 10.
+# Note: you'll have to add the implicit argument output_ptr to the
+# declaration of compute_sum (in order to use the serialize_word function):
+#   func compute_sum{output_ptr : felt*}(n : felt) -> (sum : felt):
+
+# Use the output builtin.
+%builtins output range_check
+
+from starkware.cairo.common.serialize import serialize_word
+from starkware.cairo.common.math_cmp import is_le_felt
+from starkware.cairo.common.pow import pow
+# from starkware.cairo.common.math import unsigned_div_rem
+from starkware.cairo.common.uint256 import split_64
+
+const HALF_SHIFT = 2 ** 64
+const TEST = 27182818284590452353602
+const PRECISION = 10000000000000000000000
+const PRECISION1 = 10**18
+const SHIFT = 2 ** 128
+
+#Make all decimals fit in final 64 bits 
+struct Uint128x64:
+    # The low 64 bits of the decimal value.
+    member decimal : felt
+    # The high 128 bits of the integer value.
+    member high : felt
+end
+
+struct Uint128x128:
+    # The low 128 bits of the value.
+    member low : felt
+    # The high 128 bits of the value.
+    member high : felt
+end
+
+func mul_64{range_check_ptr}(a : Uint128x64, b : Uint128x64) -> (res: Uint128x64):
+    alloc_locals
+
+    let (res0, carry) = split_64(a.decimal * b.decimal)
+    let (res1, carry) = split_64(a.high * b.low + a.low * b.high + carry)
+    let (res2, carry) = split_64(a.high*b.high + carry)
+    
+    tempvar low = res1*HALF_SHIFT + res0
+    tempvar high = carry*SHIFT + res2*HALF_SHIFT
+    local lowfix : felt
+    local remainder : felt
+    
+    %{
+    ids.lowfix = ids.low // ids.PRECISION1
+        %}
+    let (check) = is_le_felt(lowfix*PRECISION1, low)
+    let (check2) = is_le_felt(low, lowfix*PRECISION1*10)
+    assert check+check2 = 2
+    return (
+        # Uint128x128(low= res0 + res1*HALF_SHIFT , high= carry*HALF_SHIFT + res2 ),
+        Uint128x64(low= lowfix, high= high )
+        )
+end
+
+
+func main{output_ptr : felt*, range_check_ptr: felt}():
+    alloc_locals
+    let (local a, b) = split_64(TEST)
+    let (local c,d)  = split_64(PRECISION)
+    let (res) = mul_64(Uint128x64(low=a,high= b), Uint128x64(low =c, high = d)) 
+
+    # Output the result.
+    serialize_word(a)
+    serialize_word(b)
+    serialize_word(a + b*HALF_SHIFT)
+    serialize_word(c)
+    serialize_word(d)
+    serialize_word(c + d*HALF_SHIFT)
+    serialize_word(res.low)
+    serialize_word(res.low - PRECISION1)
+    serialize_word(res.high)
+    tempvar result = res.low + res.high*HALF_SHIFT
+    # let (res2low, res2high) = split_64(result)
+    serialize_word(result)
+    serialize_word(res.high*HALF_SHIFT)
+    # serialize_word(res2low + res2high*HALF_SHIFT)
+    return ()
+end
