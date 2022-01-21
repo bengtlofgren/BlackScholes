@@ -150,31 +150,27 @@ struct Uint128x64:
     member high : felt
 end
 
-struct Uint128x128:
-    # The low 128 bits of the value.
-    member low : felt
-    # The high 128 bits of the value.
-    member high : felt
-end
-
+#@dev note that the inputs here must be 64x64, or things break
 func mul_64{range_check_ptr}(a : Uint128x64, b : Uint128x64) -> (res: Uint128x64):
     alloc_locals
 
     let (res0, carry) = split_64(a.decimal * b.decimal)
-    let (res1, carry) = split_64(a.high * b.low + a.low * b.high + carry)
+    let (res1, carry) = split_64(a.high * b.decimal + a.decimal * b.high + carry)
     let (res2, carry) = split_64(a.high*b.high + carry)
     
     tempvar low = res1*HALF_SHIFT + res0
     tempvar high = carry*SHIFT + res2*HALF_SHIFT
-    local lowfix : felt
+    local fix : felt
     local remainder : felt
     
     %{
-    ids.lowfix = ids.low // ids.PRECISION1
+    ids.fix = (ids.low  + ids.high*ids.HALF_SHIFT)// ids.PRECISION1
         %}
-    let (check) = is_le_felt(lowfix*PRECISION1, low)
-    let (check2) = is_le_felt(low, lowfix*PRECISION1*10)
+    let (check) = is_le_felt(fix*PRECISION1, low)
+    let (check2) = is_le_felt(low, fix*PRECISION1*10)
     assert check+check2 = 2
+
+    let (lowres, highres) = split_64(fix)
     return (
         # Uint128x128(low= res0 + res1*HALF_SHIFT , high= carry*HALF_SHIFT + res2 ),
         Uint128x64(low= lowfix, high= high )
